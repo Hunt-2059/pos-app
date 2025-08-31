@@ -1,1 +1,19 @@
-// Electron main process placeholder
+const { app, BrowserWindow, ipcMain, Notification } = require('electron')
+const path = require('path')
+const fs = require('fs')
+const Store = require('electron-store')
+const crypto = require('crypto')
+const store = new Store()
+const BACKUP_FILE = path.join(app.getPath('userData'), 'backup.enc')
+const ENCRYPTION_KEY = store.get('encryptionKey') || crypto.randomBytes(32).toString('hex')
+store.set('encryptionKey', ENCRYPTION_KEY)
+function createWindow(){ const win=new BrowserWindow({ width:1200,height:800,webPreferences:{ preload:path.join(__dirname,'../preload.js'), nodeIntegration:false, contextIsolation:true } })
+  const indexPath = path.join(__dirname,'../../dist/index.html')
+  if(fs.existsSync(indexPath)){ win.loadFile(indexPath) } else { win.loadURL('http://localhost:5173') }
+  if(process.env.VITE_DEV_SERVER_URL) win.webContents.openDevTools()
+}
+app.whenReady().then(()=>{ createWindow(); app.on('activate',()=>{ if(BrowserWindow.getAllWindows().length===0) createWindow() }) })
+ipcMain.handle('notify-desktop',(e,{title,body})=>{ try{ new Notification({title,body}).show(); return true }catch(err){ console.error(err); return false } })
+ipcMain.handle('read-backup',async()=>{ try{ if(!fs.existsSync(BACKUP_FILE)) return null; const enc=fs.readFileSync(BACKUP_FILE,'utf8'); const iv=Buffer.from(enc.slice(0,32),'hex'); const data=Buffer.from(enc.slice(32),'hex'); const decipher=crypto.createDecipheriv('aes-256-cbc',Buffer.from(ENCRYPTION_KEY,'hex'),iv); let decrypted=decipher.update(data); decrypted=Buffer.concat([decrypted,decipher.final()]); return JSON.parse(decrypted.toString()) }catch(e){ console.error('read-backup failed',e); return null } })
+ipcMain.handle('write-backup',async(_,payload)=>{ try{ const iv=crypto.randomBytes(16); const cipher=crypto.createCipheriv('aes-256-cbc',Buffer.from(ENCRYPTION_KEY,'hex'),iv); let encrypted=cipher.update(JSON.stringify(payload)); encrypted=Buffer.concat([encrypted,cipher.final()]); const out=iv.toString('hex')+encrypted.toString('hex'); fs.writeFileSync(BACKUP_FILE,out,'utf8'); return true }catch(e){ console.error('write-backup failed',e); return false } })
+app.on('window-all-closed',()=>{ if(process.platform!=='darwin') app.quit() })

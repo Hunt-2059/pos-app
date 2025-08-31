@@ -1,10 +1,20 @@
-
 {
   "appId": "com.pos.app",
-  "productName": "POSApp",
-  "files": ["dist/**/*", "src/main/**/*", "src/preload.js", "package.json"],
-  "directories": { "output": "release" },
-  "mac": { "target": ["dmg", "zip"] },
-  "win": { "target": ["nsis", "zip"] },
-  "linux": { "target": ["AppImage", "deb", "rpm"] }
+  "productName": "POS App",
+  "files": [
+    "dist/**",
+    "src/main/**",
+    "src/preload.js",
+    "package.json"
+  ],
+  "directories": {
+    "output": "release"
+  },
+  "win": {
+    "target": [
+      "nsis",
+      "portable"
+    ],
+    "publisherName": "POS App"
+  }
 }
